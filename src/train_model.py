@@ -1,10 +1,16 @@
 import pandas as pd
 
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    classification_report
+)
 
 
 # --------------------------------
@@ -22,32 +28,7 @@ data = data.drop("Loan_ID", axis=1)
 
 
 # --------------------------------
-# 3. Handle Missing Values
-# --------------------------------
-
-categorical_columns = [
-    "Gender",
-    "Married",
-    "Dependents",
-    "Education",
-    "Self_Employed"
-]
-
-for column in categorical_columns:
-    data[column] = data[column].fillna(data[column].mode()[0])
-
-
-numerical_columns = [
-    "Loan_Amount_Term",
-    "Credit_History"
-]
-
-for column in numerical_columns:
-    data[column] = data[column].fillna(data[column].median())
-
-
-# --------------------------------
-# 4. Separate X and y
+# 3. Separate Features and Target
 # --------------------------------
 
 X = data.drop("Loan_Status", axis=1)
@@ -55,7 +36,7 @@ y = data["Loan_Status"]
 
 
 # --------------------------------
-# 5. Categorical Features
+# 4. Identify Columns
 # --------------------------------
 
 categorical_features = [
@@ -67,32 +48,73 @@ categorical_features = [
     "Property_Area"
 ]
 
+numerical_features = [
+    "ApplicantIncome",
+    "CoapplicantIncome",
+    "LoanAmount",
+    "Loan_Amount_Term",
+    "Credit_History"
+]
+
 
 # --------------------------------
-# 6. Encoding
+# 5. Categorical Preprocessing
+# --------------------------------
+
+categorical_pipeline = Pipeline(
+    steps=[
+        (
+            "imputer",
+            SimpleImputer(strategy="most_frequent")
+        ),
+        (
+            "encoder",
+            OneHotEncoder(handle_unknown="ignore")
+        )
+    ]
+)
+
+
+# --------------------------------
+# 6. Numerical Preprocessing
+# --------------------------------
+
+numerical_pipeline = Pipeline(
+    steps=[
+        (
+            "imputer",
+            SimpleImputer(strategy="median")
+        )
+    ]
+)
+
+
+# --------------------------------
+# 7. Combine Preprocessing
 # --------------------------------
 
 preprocessor = ColumnTransformer(
     transformers=[
         (
             "categorical",
-            OneHotEncoder(handle_unknown="ignore"),
+            categorical_pipeline,
             categorical_features
+        ),
+        (
+            "numerical",
+            numerical_pipeline,
+            numerical_features
         )
-    ],
-    remainder="passthrough"
+    ]
 )
 
 
-X_encoded = preprocessor.fit_transform(X)
-
-
 # --------------------------------
-# 7. Train/Test Split
+# 8. Train/Test Split
 # --------------------------------
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X_encoded,
+    X,
     y,
     test_size=0.20,
     random_state=42,
@@ -101,31 +123,53 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 
 # --------------------------------
-# 8. Create Model
+# 9. Create Complete ML Pipeline
 # --------------------------------
 
-model = LogisticRegression(max_iter=1000)
-
-
-# --------------------------------
-# 9. Train Model
-# --------------------------------
-
-model.fit(X_train, y_train)
-
-
-# --------------------------------
-# 10. Make Predictions
-# --------------------------------
-
-y_pred = model.predict(X_test)
+model_pipeline = Pipeline(
+    steps=[
+        (
+            "preprocessing",
+            preprocessor
+        ),
+        (
+            "model",
+            LogisticRegression(max_iter=1000)
+        )
+    ]
+)
 
 
 # --------------------------------
-# 11. Calculate Accuracy
+# 10. Train Model
 # --------------------------------
+
+model_pipeline.fit(X_train, y_train)
+
+
+# --------------------------------
+# 11. Make Predictions
+# --------------------------------
+
+y_pred = model_pipeline.predict(X_test)
+
+
+# 12. Evaluate Model
+
 
 accuracy = accuracy_score(y_test, y_pred)
 
-print("\nModel Accuracy:")
+print("\nLogistic Regression Accuracy:")
 print(accuracy)
+
+
+# Confusion Matrix
+cm = confusion_matrix(y_test, y_pred)
+
+print("\nConfusion Matrix:")
+print(cm)
+
+
+# Classification Report
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
