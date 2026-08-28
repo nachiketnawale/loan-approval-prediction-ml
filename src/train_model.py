@@ -11,7 +11,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
-    classification_report
+    classification_report,
+    roc_auc_score
 )
 
 
@@ -292,3 +293,24 @@ print(
         y_pred_rf
     )
 )
+
+# --------------------------------
+# 21. Random Forest Probabilities
+# --------------------------------
+
+y_probability = random_forest_pipeline.predict_proba(
+    X_test
+)[:, 1]
+
+
+# --------------------------------
+# 22. ROC-AUC
+# --------------------------------
+
+roc_auc = roc_auc_score(
+    y_test,
+    y_probability
+)
+
+print("\nRandom Forest ROC-AUC:")
+print(roc_auc)
