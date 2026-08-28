@@ -1,5 +1,7 @@
 import pandas as pd
 
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -173,3 +175,117 @@ print(cm)
 # Classification Report
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
+
+
+# --------------------------------
+# 13. Decision Tree Model
+# --------------------------------
+
+decision_tree_pipeline = Pipeline(
+    steps=[
+        (
+            "preprocessing",
+            preprocessor
+        ),
+        (
+            "model",
+            DecisionTreeClassifier(
+                random_state=42
+            )
+        )
+    ]
+)
+
+
+# --------------------------------
+# 14. Train Decision Tree
+# --------------------------------
+
+decision_tree_pipeline.fit(X_train, y_train)
+
+
+# --------------------------------
+# 15. Make Predictions
+# --------------------------------
+
+y_pred_tree = decision_tree_pipeline.predict(X_test)
+
+
+# --------------------------------
+# 16. Evaluate Decision Tree
+# --------------------------------
+
+tree_accuracy = accuracy_score(
+    y_test,
+    y_pred_tree
+)
+
+print("\nDecision Tree Accuracy:")
+print(tree_accuracy)
+
+print("\nDecision Tree Classification Report:")
+print(
+    classification_report(
+        y_test,
+        y_pred_tree
+    )
+)
+
+
+# --------------------------------
+# 17. Random Forest Model
+# --------------------------------
+
+random_forest_pipeline = Pipeline(
+    steps=[
+        (
+            "preprocessing",
+            preprocessor
+        ),
+        (
+            "model",
+            RandomForestClassifier(
+                n_estimators=100,
+                random_state=42
+            )
+        )
+    ]
+)
+
+
+# --------------------------------
+# 18. Train Random Forest
+# --------------------------------
+
+random_forest_pipeline.fit(
+    X_train,
+    y_train
+)
+
+
+# --------------------------------
+# 19. Make Predictions
+# --------------------------------
+
+y_pred_rf = random_forest_pipeline.predict(X_test)
+
+
+# --------------------------------
+# 20. Evaluate Random Forest
+# --------------------------------
+
+rf_accuracy = accuracy_score(
+    y_test,
+    y_pred_rf
+)
+
+print("\nRandom Forest Accuracy:")
+print(rf_accuracy)
+
+print("\nRandom Forest Classification Report:")
+print(
+    classification_report(
+        y_test,
+        y_pred_rf
+    )
+)
