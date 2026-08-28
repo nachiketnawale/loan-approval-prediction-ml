@@ -5,7 +5,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -86,10 +86,13 @@ numerical_pipeline = Pipeline(
         (
             "imputer",
             SimpleImputer(strategy="median")
+        ),
+        (
+            "scaler",
+            StandardScaler()
         )
     ]
 )
-
 
 # --------------------------------
 # 7. Combine Preprocessing
