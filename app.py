@@ -20,6 +20,42 @@ st.set_page_config(
     layout="centered"
 )
 
+# --------------------------------
+# Model Information Sidebar
+# --------------------------------
+
+with st.sidebar:
+
+    st.header("📊 Model Information")
+
+    st.write("**Algorithm:** Random Forest")
+
+    st.metric(
+        "Test Accuracy",
+        "88.31%"
+    )
+
+    st.metric(
+        "ROC-AUC",
+        "0.888"
+    )
+
+    st.write("**Training Samples:** 304")
+
+    st.write("**Testing Samples:** 77")
+
+    st.divider()
+
+    st.caption(
+        "The model was trained on historical "
+        "loan application data."
+    )
+
+    st.caption(
+        "Predictions are for demonstration purposes "
+        "and should not be treated as official banking decisions."
+    )
+
 
 # --------------------------------
 # 3. Title
@@ -42,11 +78,9 @@ st.divider()
 # 4. Applicant Information
 # --------------------------------
 
-st.subheader("Applicant Information")
-
+st.subheader("👤 Personal Information")
 
 col1, col2 = st.columns(2)
-
 
 with col1:
 
@@ -77,6 +111,11 @@ with col1:
 
 
 with col2:
+
+    st.markdown(
+        "<h3 style='margin-top: 0;'>💰 Financial Information</h3>",
+        unsafe_allow_html=True
+    )
 
     applicant_income = st.number_input(
         "Applicant Income",
