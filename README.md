@@ -1,5 +1,18 @@
 #  LoanWise — AI-Powered Loan Approval Predictor
 
+## 🚀 Live Demo
+
+Try LoanWise here:
+
+👉 **[Launch LoanWise](https://loan-approval-prediction-ml-hehhkphm4kyn4ltvucbnzs.streamlit.app/)**
+
+The application provides:
+- Loan approval prediction
+- Approval probability
+- Risk indication
+- Global feature importance
+- Individual SHAP explanations
+
 LoanWise is a machine learning application that predicts whether a loan application is likely to be approved based on applicant financial and personal information.
 
 The project uses a Random Forest classification model and provides both prediction probabilities and model explainability using SHAP.
@@ -83,4 +96,4 @@ Feature Transformation
         ↓
 Random Forest Classifier
         ↓
-Loan Approval Prediction
+Loan Approval Predictiongit
