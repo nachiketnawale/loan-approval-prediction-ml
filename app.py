@@ -10,6 +10,10 @@ import numpy as np
 
 model = joblib.load("loan_approval_model.pkl")
 
+# Extract pipeline components for explainability
+preprocessor = model.named_steps["preprocessing"]
+random_forest = model.named_steps["model"]
+
 
 # ==========================================
 # 2. PAGE CONFIGURATION
