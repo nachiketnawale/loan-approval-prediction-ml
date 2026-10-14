@@ -486,110 +486,66 @@ if predict_button:
     )
 
 
-# ============================================================
 # MODEL PERFORMANCE DASHBOARD
 # ============================================================
 
 st.divider()
 st.header("📊 Model Performance Dashboard")
+
 st.write(
-    "These scores come from the held-out test split saved by the training script. "
-    "Precision, recall, and F1-score use loan approval (Y) as the positive class."
+    "Metrics calculated on the held-out test set. "
+    "Precision, recall, and F1-score use loan approval (Y) "
+    "as the positive class."
 )
 
-results_path = "model_evaluation_results.csv"
-data_path = "data/loan_data.csv"
+results_file = "model_evaluation_results.csv"
 
-if os.path.exists(results_path):
-    try:
-        results = pd.read_csv(results_path)
-        required_cols = ["Model", "Accuracy", "Precision", "Recall", "F1-Score", "ROC-AUC"]
+if os.path.exists(results_file):
+    results = pd.read_csv(results_file)
 
-        if not all(col in results.columns for col in required_cols):
-            st.error(
-                "The evaluation CSV does not contain the expected columns. "
-                "Run `python src/save_model.py` to regenerate it."
-            )
-        else:
-            rf_rows = results[results["Model"] == "Random Forest"]
-            if rf_rows.empty:
-                st.error("No Random Forest results found in the evaluation CSV.")
-            else:
-                rf = rf_rows.iloc[0]
-                score1, score2 = st.columns(2)
-                score3, score4 = st.columns(2)
-                score1.metric(" Accuracy", f"{float(rf['Accuracy']):.2%}")
-                score2.metric(" Precision", f"{float(rf['Precision']):.2%}")
-                score3.metric(" Recall", f"{float(rf['Recall']):.2%}")
-                score4.metric(" F1-Score", f"{float(rf['F1-Score']):.2%}")
-                st.metric("ROC-AUC", f"{float(rf['ROC-AUC']):.4f}")
+    rf = results[results["Model"] == "Random Forest"]
 
-                st.subheader("Saved Evaluation Results")
-                formatted_results = results.copy()
-                for col in ["Accuracy", "Precision", "Recall", "F1-Score"]:
-                    formatted_results[col] = formatted_results[col].map(
-                        lambda value: f"{float(value):.2%}"
-                    )
-                formatted_results["ROC-AUC"] = formatted_results["ROC-AUC"].map(
-                    lambda value: f"{float(value):.4f}"
-                )
-                st.dataframe(formatted_results, use_container_width=True, hide_index=True)
+    if not rf.empty:
+        rf = rf.iloc[0]
 
-                st.subheader("Metric Comparison")
-                chart_data = results.set_index("Model")[["Accuracy", "Precision", "Recall", "F1-Score"]]
-                st.bar_chart(chart_data)
+        st.subheader("Random Forest Evaluation Scores")
 
-                # Recreate the exact split used in src/save_model.py and display the matrix.
-                if os.path.exists(data_path):
-                    evaluation_data = pd.read_csv(data_path).drop(columns=["Loan_ID"], errors="ignore")
-                    X_eval = evaluation_data.drop(columns=["Loan_Status"])
-                    y_eval = evaluation_data["Loan_Status"]
-                    _, X_test_eval, _, y_test_eval = train_test_split(
-                        X_eval,
-                        y_eval,
-                        test_size=0.20,
-                        random_state=42,
-                        stratify=y_eval
-                    )
-                    y_pred_eval = model.predict(X_test_eval)
-                    cm = confusion_matrix(y_test_eval, y_pred_eval, labels=["N", "Y"])
+        c1, c2 = st.columns(2)
+        c3, c4 = st.columns(2)
 
-                    st.subheader("Confusion Matrix")
-                    st.caption("Rows are actual labels; columns are predicted labels.")
-                    cm_df = pd.DataFrame(
-                        cm,
-                        index=["Actual: Rejected (N)", "Actual: Approved (Y)"],
-                        columns=["Predicted: Rejected (N)", "Predicted: Approved (Y)"]
-                    )
-                    st.dataframe(cm_df, use_container_width=True)
+        c1.metric("🎯 Accuracy", f"{rf['Accuracy']:.2%}")
+        c2.metric("🔍 Precision", f"{rf['Precision']:.2%}")
+        c3.metric("📈 Recall", f"{rf['Recall']:.2%}")
+        c4.metric("⚖️ F1-Score", f"{rf['F1-Score']:.2%}")
 
-                    fig, ax = plt.subplots(figsize=(6, 4))
-                    image = ax.imshow(cm, interpolation="nearest", cmap="Blues")
-                    ax.set_title("Loan Approval Confusion Matrix")
-                    ax.set_xlabel("Predicted label")
-                    ax.set_ylabel("Actual label")
-                    ax.set_xticks([0, 1], labels=["Rejected (N)", "Approved (Y)"])
-                    ax.set_yticks([0, 1], labels=["Rejected (N)", "Approved (Y)"])
-                    threshold = cm.max() / 2 if cm.max() else 0
-                    for row in range(cm.shape[0]):
-                        for col in range(cm.shape[1]):
-                            ax.text(
-                                col, row, str(cm[row, col]),
-                                ha="center", va="center",
-                                color="white" if cm[row, col] > threshold else "black",
-                                fontsize=13
-                            )
-                    fig.tight_layout()
-                    st.pyplot(fig)
-                    plt.close(fig)
-                else:
-                    st.warning("Dataset not found, so the confusion matrix could not be generated.")
-    except Exception as error:
-        st.error(f"Could not load evaluation results: {error}")
+        if "ROC-AUC" in results.columns:
+            st.metric("ROC-AUC", f"{rf['ROC-AUC']:.4f}")
+
+    st.subheader("Model Comparison")
+
+    st.dataframe(
+        results.style.format({
+            col: "{:.2%}"
+            for col in ["Accuracy", "Precision", "Recall", "F1-Score"]
+            if col in results.columns
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    chart_columns = [
+        col for col in ["Accuracy", "Precision", "Recall", "F1-Score"]
+        if col in results.columns
+    ]
+
+    st.bar_chart(
+        results.set_index("Model")[chart_columns]
+    )
+
 else:
-    st.warning(
-        "Evaluation results are missing. From the project root, run "
-        "`python src/save_model.py` first, then refresh this page."
+    st.error(
+        "Evaluation results not found. "
+        "Run python src/train_model.py from your project root."
     )
 
 
