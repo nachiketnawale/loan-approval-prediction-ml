@@ -1,8 +1,6 @@
 
+import os
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import confusion_matrix
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -25,10 +23,15 @@ from sklearn.metrics import (
 
 
 # --------------------------------
-# 1. Load Dataset
+# 1. Load Dataset and define output paths
 # --------------------------------
 
-data = pd.read_csv("data/loan_data.csv")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_PATH = os.path.join(BASE_DIR, "data", "loan_data.csv")
+METRICS_PATH = os.path.join(BASE_DIR, "model_evaluation_results.csv")
+CONFUSION_MATRIX_PATH = os.path.join(BASE_DIR, "confusion_matrix.csv")
+
+data = pd.read_csv(DATA_PATH)
 
 
 # --------------------------------
@@ -246,27 +249,6 @@ random_forest_pipeline.fit(X_train, y_train)
 y_pred_rf = random_forest_pipeline.predict(X_test)
 
 
-# Save the Random Forest confusion matrix using test data
-cm = confusion_matrix(
-    y_test,
-    y_pred_rf,
-    labels=["N", "Y"]
-)
-
-cm_df = pd.DataFrame(
-    cm,
-    index=["Actual Rejected (N)", "Actual Approved (Y)"],
-    columns=["Predicted Rejected (N)", "Predicted Approved (Y)"]
-)
-
-cm_df.to_csv("confusion_matrix.csv")
-
-print("\nRandom Forest Confusion Matrix:")
-print(cm_df)
-print("\nConfusion matrix saved to confusion_matrix.csv")
-
-
-
 # --------------------------------
 # 13. Random Forest Probabilities
 # --------------------------------
@@ -320,6 +302,24 @@ print(
 )
 
 # Save results for future use
-results.to_csv("model_evaluation_results.csv", index=False)
+results.to_csv(METRICS_PATH, index=False)
 
-print("\nEvaluation results saved to model_evaluation_results.csv")
+print(f"\nEvaluation results saved to {METRICS_PATH}")
+
+# --------------------------------
+# 16. Save Random Forest Confusion Matrix
+# --------------------------------
+
+cm = confusion_matrix(y_test, y_pred_rf, labels=["N", "Y"])
+
+cm_df = pd.DataFrame(
+    cm,
+    index=["Actual Rejected (N)", "Actual Approved (Y)"],
+    columns=["Predicted Rejected (N)", "Predicted Approved (Y)"]
+)
+
+cm_df.to_csv(CONFUSION_MATRIX_PATH)
+
+print("\nRandom Forest confusion matrix:")
+print(cm_df)
+print(f"Confusion matrix saved to {CONFUSION_MATRIX_PATH}")
