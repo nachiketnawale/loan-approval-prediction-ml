@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 import pandas as pd
 import joblib
 import shap
@@ -482,6 +483,78 @@ if predict_button:
     )
 
 
+
+# ============================================================
+# MODEL PERFORMANCE DASHBOARD
+# ============================================================
+
+st.divider()
+st.header("📈 Model Performance Dashboard")
+
+st.write(
+    "Performance metrics are calculated on the held-out test set. "
+    "Precision, recall, and F1-score below use loan approval (Y) "
+    "as the positive class."
+)
+
+results_file = "model_evaluation_results.csv"
+
+if os.path.exists(results_file):
+    results = pd.read_csv(results_file)
+
+    required_columns = {
+        "Model", "Accuracy", "Precision", "Recall", "F1-Score"
+    }
+
+    if required_columns.issubset(results.columns):
+        rf_results = results[results["Model"] == "Random Forest"]
+
+        if not rf_results.empty:
+            rf = rf_results.iloc[0]
+
+            metric_col1, metric_col2 = st.columns(2)
+            metric_col3, metric_col4 = st.columns(2)
+
+            metric_col1.metric("Accuracy", f"{rf['Accuracy']:.2%}")
+            metric_col2.metric("Precision", f"{rf['Precision']:.2%}")
+            metric_col3.metric("Recall", f"{rf['Recall']:.2%}")
+            metric_col4.metric("F1-Score", f"{rf['F1-Score']:.2%}")
+
+            st.subheader("Compare Models")
+
+            display_results = results.copy()
+            metric_columns = [
+                "Accuracy", "Precision", "Recall", "F1-Score"
+            ]
+            st.dataframe(
+                display_results.style.format(
+                    {column: "{:.2%}" for column in metric_columns}
+                ),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            st.subheader("Metric Comparison")
+            chart_data = results.set_index("Model")[metric_columns]
+            st.bar_chart(chart_data, y=metric_columns)
+        else:
+            st.warning(
+                "The evaluation file does not contain a Random Forest row. "
+                "Run `python src/train_model.py` to regenerate it."
+            )
+    else:
+        st.warning(
+            "The evaluation CSV is missing required columns. "
+            "Run `python src/train_model.py` using the updated training script."
+        )
+else:
+    st.info(
+        "Model evaluation results are not available yet. Run "
+        "`python src/train_model.py` from the project root to create "
+        "`model_evaluation_results.csv`, then refresh this page."
+    )
+
+
 # ============================================================
 # SIDEBAR
 # ============================================================
@@ -507,11 +580,7 @@ with st.sidebar:
     )
 
     st.write(
-        "**Test Accuracy:** 88.31%"
-    )
-
-    st.write(
-        "**ROC-AUC:** 0.888"
+        "Test metrics are shown in the Model Performance Dashboard."
     )
 
     st.divider()
