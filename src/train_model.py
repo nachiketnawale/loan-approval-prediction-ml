@@ -1,5 +1,8 @@
 
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -241,6 +244,27 @@ random_forest_pipeline = Pipeline(
 random_forest_pipeline.fit(X_train, y_train)
 
 y_pred_rf = random_forest_pipeline.predict(X_test)
+
+
+# Save the Random Forest confusion matrix using test data
+cm = confusion_matrix(
+    y_test,
+    y_pred_rf,
+    labels=["N", "Y"]
+)
+
+cm_df = pd.DataFrame(
+    cm,
+    index=["Actual Rejected (N)", "Actual Approved (Y)"],
+    columns=["Predicted Rejected (N)", "Predicted Approved (Y)"]
+)
+
+cm_df.to_csv("confusion_matrix.csv")
+
+print("\nRandom Forest Confusion Matrix:")
+print(cm_df)
+print("\nConfusion matrix saved to confusion_matrix.csv")
+
 
 
 # --------------------------------
