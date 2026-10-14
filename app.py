@@ -497,76 +497,140 @@ if predict_button:
 
 
 
+
 # ============================================================
 # MODEL PERFORMANCE DASHBOARD
 # ============================================================
 
 st.divider()
-st.header("📈 Model Performance Dashboard")
+st.header("📊 Model Performance Dashboard")
 
 st.write(
-    "Performance metrics are calculated on the held-out test set. "
-    "Precision, recall, and F1-score below use loan approval (Y) "
-    "as the positive class."
+    "Evaluation metrics calculated on the held-out test dataset. "
+    "The positive class is loan approved (Y)."
 )
 
-results_file = "model_evaluation_results.csv"
-
-if os.path.exists(results_file):
-    results = pd.read_csv(results_file)
-
-    required_columns = {
-        "Model", "Accuracy", "Precision", "Recall", "F1-Score"
-    }
-
-    if required_columns.issubset(results.columns):
-        rf_results = results[results["Model"] == "Random Forest"]
-
-        if not rf_results.empty:
-            rf = rf_results.iloc[0]
-
-            metric_col1, metric_col2 = st.columns(2)
-            metric_col3, metric_col4 = st.columns(2)
-
-            metric_col1.metric("Accuracy", f"{rf['Accuracy']:.2%}")
-            metric_col2.metric("Precision", f"{rf['Precision']:.2%}")
-            metric_col3.metric("Recall", f"{rf['Recall']:.2%}")
-            metric_col4.metric("F1-Score", f"{rf['F1-Score']:.2%}")
-
-            st.subheader("Compare Models")
-
-            display_results = results.copy()
-            metric_columns = [
-                "Accuracy", "Precision", "Recall", "F1-Score"
-            ]
-            st.dataframe(
-                display_results.style.format(
-                    {column: "{:.2%}" for column in metric_columns}
-                ),
-                use_container_width=True,
-                hide_index=True
-            )
-
-            st.subheader("Metric Comparison")
-            chart_data = results.set_index("Model")[metric_columns]
-            st.bar_chart(chart_data, y=metric_columns)
-        else:
-            st.warning(
-                "The evaluation file does not contain a Random Forest row. "
-                "Run `python src/train_model.py` to regenerate it."
-            )
-    else:
-        st.warning(
-            "The evaluation CSV is missing required columns. "
-            "Run `python src/train_model.py` using the updated training script."
-        )
-else:
-    st.info(
-        "Model evaluation results are not available yet. Run "
-        "`python src/train_model.py` from the project root to create "
-        "`model_evaluation_results.csv`, then refresh this page."
+try:
+    # Load the same dataset used for model training
+    evaluation_data = pd.read_csv("data/loan_data.csv")
+    evaluation_data = evaluation_data.drop(
+        columns=["Loan_ID"],
+        errors="ignore"
     )
 
+    X_eval = evaluation_data.drop(columns=["Loan_Status"])
+    y_eval = evaluation_data["Loan_Status"]
+
+    # Recreate the same test split used in train_model.py
+    _, X_test_eval, _, y_test_eval = train_test_split(
+        X_eval,
+        y_eval,
+        test_size=0.20,
+        random_state=42,
+        stratify=y_eval
+    )
+
+    # Predict with the saved model loaded at the top of app.py
+    y_pred_eval = model.predict(X_test_eval)
+
+    # Find the approved class probability
+    approved_index = list(model.classes_).index("Y")
+    y_prob_eval = model.predict_proba(X_test_eval)[:, approved_index]
+
+    # Calculate metrics
+    accuracy = accuracy_score(y_test_eval, y_pred_eval)
+    precision = precision_score(
+        y_test_eval, y_pred_eval, pos_label="Y", zero_division=0
+    )
+    recall = recall_score(
+        y_test_eval, y_pred_eval, pos_label="Y", zero_division=0
+    )
+    f1 = f1_score(
+        y_test_eval, y_pred_eval, pos_label="Y", zero_division=0
+    )
+    roc_auc = roc_auc_score(
+        (y_test_eval == "Y").astype(int),
+        y_prob_eval
+    )
+
+    # Display the four main metrics
+    st.subheader("Model Evaluation Scores")
+
+    col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
+
+    col1.metric("🎯 Accuracy", f"{accuracy:.2%}")
+    col2.metric("🔍 Precision", f"{precision:.2%}")
+    col3.metric("📈 Recall", f"{recall:.2%}")
+    col4.metric("⚖️ F1-Score", f"{f1:.2%}")
+
+    st.metric("ROC-AUC Score", f"{roc_auc:.4f}")
+
+    # Confusion matrix
+    st.subheader("Confusion Matrix")
+
+    cm = confusion_matrix(
+        y_test_eval,
+        y_pred_eval,
+        labels=["N", "Y"]
+    )
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    ax.imshow(cm, interpolation="nearest", cmap="Blues")
+    ax.set_title("Loan Approval Confusion Matrix")
+    ax.set_xlabel("Predicted Status")
+    ax.set_ylabel("Actual Status")
+
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(["Rejected (N)", "Approved (Y)"])
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(["Rejected (N)", "Approved (Y)"])
+
+    # Write the count in each cell
+    threshold = cm.max() / 2 if cm.max() > 0 else 0
+
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(
+                j, i, str(cm[i, j]),
+                ha="center",
+                va="center",
+                color="white" if cm[i, j] > threshold else "black",
+                fontsize=14
+            )
+
+    fig.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
+
+    # Detailed report
+    with st.expander("View Detailed Classification Report"):
+        from sklearn.metrics import classification_report
+
+        report = classification_report(
+            y_test_eval,
+            y_pred_eval,
+            labels=["N", "Y"],
+            target_names=["Rejected", "Approved"],
+            output_dict=True,
+            zero_division=0
+        )
+
+        report_df = pd.DataFrame(report).transpose()
+        st.dataframe(
+            report_df.round(3),
+            use_container_width=True
+        )
+
+except FileNotFoundError:
+    st.error(
+        "Dataset not found. Ensure data/loan_data.csv exists "
+        "in your project repository."
+    )
+
+except Exception as e:
+    st.error(f"Unable to calculate model evaluation: {e}")
 
 # ============================================================
 # SIDEBAR
