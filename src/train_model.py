@@ -1,3 +1,4 @@
+
 import pandas as pd
 
 from sklearn.ensemble import RandomForestClassifier
@@ -8,8 +9,12 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
+
 from sklearn.metrics import (
     accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
     confusion_matrix,
     classification_report,
     roc_auc_score
@@ -66,14 +71,8 @@ numerical_features = [
 
 categorical_pipeline = Pipeline(
     steps=[
-        (
-            "imputer",
-            SimpleImputer(strategy="most_frequent")
-        ),
-        (
-            "encoder",
-            OneHotEncoder(handle_unknown="ignore")
-        )
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(handle_unknown="ignore"))
     ]
 )
 
@@ -84,16 +83,11 @@ categorical_pipeline = Pipeline(
 
 numerical_pipeline = Pipeline(
     steps=[
-        (
-            "imputer",
-            SimpleImputer(strategy="median")
-        ),
-        (
-            "scaler",
-            StandardScaler()
-        )
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler())
     ]
 )
+
 
 # --------------------------------
 # 7. Combine Preprocessing
@@ -101,16 +95,8 @@ numerical_pipeline = Pipeline(
 
 preprocessor = ColumnTransformer(
     transformers=[
-        (
-            "categorical",
-            categorical_pipeline,
-            categorical_features
-        ),
-        (
-            "numerical",
-            numerical_pipeline,
-            numerical_features
-        )
+        ("categorical", categorical_pipeline, categorical_features),
+        ("numerical", numerical_pipeline, numerical_features)
     ]
 )
 
@@ -129,188 +115,187 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 
 # --------------------------------
-# 9. Create Complete ML Pipeline
+# 9. Evaluation Function
 # --------------------------------
 
-model_pipeline = Pipeline(
-    steps=[
-        (
-            "preprocessing",
-            preprocessor
-        ),
-        (
-            "model",
-            LogisticRegression(max_iter=1000)
+def evaluate_model(model_name, y_true, y_pred, y_prob=None):
+
+    accuracy = accuracy_score(y_true, y_pred)
+
+    # Loan_Status = Y means loan approved
+    precision = precision_score(
+        y_true, y_pred,
+        pos_label="Y",
+        zero_division=0
+    )
+
+    recall = recall_score(
+        y_true, y_pred,
+        pos_label="Y",
+        zero_division=0
+    )
+
+    f1 = f1_score(
+        y_true, y_pred,
+        pos_label="Y",
+        zero_division=0
+    )
+
+    print("\n" + "=" * 50)
+    print(f"MODEL EVALUATION: {model_name}")
+    print("=" * 50)
+
+    print(f"Accuracy  : {accuracy:.4f} ({accuracy * 100:.2f}%)")
+    print(f"Precision : {precision:.4f} ({precision * 100:.2f}%)")
+    print(f"Recall    : {recall:.4f} ({recall * 100:.2f}%)")
+    print(f"F1-Score  : {f1:.4f} ({f1 * 100:.2f}%)")
+
+    print("\nConfusion Matrix:")
+    print(confusion_matrix(y_true, y_pred, labels=["N", "Y"]))
+
+    print("\nClassification Report:")
+    print(
+        classification_report(
+            y_true,
+            y_pred,
+            labels=["N", "Y"],
+            target_names=["Rejected (N)", "Approved (Y)"],
+            zero_division=0
         )
+    )
+
+    if y_prob is not None:
+        roc_auc = roc_auc_score(
+            (y_true == "Y").astype(int),
+            y_prob
+        )
+        print(f"ROC-AUC   : {roc_auc:.4f} ({roc_auc * 100:.2f}%)")
+
+    return {
+        "Model": model_name,
+        "Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1-Score": f1
+    }
+
+
+# --------------------------------
+# 10. Logistic Regression
+# --------------------------------
+
+logistic_pipeline = Pipeline(
+    steps=[
+        ("preprocessing", preprocessor),
+        ("model", LogisticRegression(max_iter=1000))
     ]
+)
+
+logistic_pipeline.fit(X_train, y_train)
+
+y_pred_lr = logistic_pipeline.predict(X_test)
+
+lr_metrics = evaluate_model(
+    "Logistic Regression",
+    y_test,
+    y_pred_lr
 )
 
 
 # --------------------------------
-# 10. Train Model
-# --------------------------------
-
-model_pipeline.fit(X_train, y_train)
-
-
-# --------------------------------
-# 11. Make Predictions
-# --------------------------------
-
-y_pred = model_pipeline.predict(X_test)
-
-
-# 12. Evaluate Model
-
-
-accuracy = accuracy_score(y_test, y_pred)
-
-print("\nLogistic Regression Accuracy:")
-print(accuracy)
-
-
-# Confusion Matrix
-cm = confusion_matrix(y_test, y_pred)
-
-print("\nConfusion Matrix:")
-print(cm)
-
-
-# Classification Report
-print("\nClassification Report:")
-print(classification_report(y_test, y_pred))
-
-
-# --------------------------------
-# 13. Decision Tree Model
+# 11. Decision Tree
 # --------------------------------
 
 decision_tree_pipeline = Pipeline(
     steps=[
-        (
-            "preprocessing",
-            preprocessor
-        ),
-        (
-            "model",
-            DecisionTreeClassifier(
-                random_state=42
-            )
-        )
+        ("preprocessing", preprocessor),
+        ("model", DecisionTreeClassifier(random_state=42))
     ]
 )
 
-
-# --------------------------------
-# 14. Train Decision Tree
-# --------------------------------
-
 decision_tree_pipeline.fit(X_train, y_train)
-
-
-# --------------------------------
-# 15. Make Predictions
-# --------------------------------
 
 y_pred_tree = decision_tree_pipeline.predict(X_test)
 
-
-# --------------------------------
-# 16. Evaluate Decision Tree
-# --------------------------------
-
-tree_accuracy = accuracy_score(
+tree_metrics = evaluate_model(
+    "Decision Tree",
     y_test,
     y_pred_tree
 )
 
-print("\nDecision Tree Accuracy:")
-print(tree_accuracy)
-
-print("\nDecision Tree Classification Report:")
-print(
-    classification_report(
-        y_test,
-        y_pred_tree
-    )
-)
-
 
 # --------------------------------
-# 17. Random Forest Model
+# 12. Random Forest
 # --------------------------------
 
 random_forest_pipeline = Pipeline(
     steps=[
-        (
-            "preprocessing",
-            preprocessor
-        ),
-        (
-            "model",
-            RandomForestClassifier(
-                n_estimators=100,
-                random_state=42
-            )
-        )
+        ("preprocessing", preprocessor),
+        ("model", RandomForestClassifier(
+            n_estimators=100,
+            random_state=42
+        ))
     ]
 )
 
-
-# --------------------------------
-# 18. Train Random Forest
-# --------------------------------
-
-random_forest_pipeline.fit(
-    X_train,
-    y_train
-)
-
-
-# --------------------------------
-# 19. Make Predictions
-# --------------------------------
+random_forest_pipeline.fit(X_train, y_train)
 
 y_pred_rf = random_forest_pipeline.predict(X_test)
 
 
 # --------------------------------
-# 20. Evaluate Random Forest
+# 13. Random Forest Probabilities
 # --------------------------------
 
-rf_accuracy = accuracy_score(
-    y_test,
-    y_pred_rf
-)
-
-print("\nRandom Forest Accuracy:")
-print(rf_accuracy)
-
-print("\nRandom Forest Classification Report:")
-print(
-    classification_report(
-        y_test,
-        y_pred_rf
-    )
-)
-
-# --------------------------------
-# 21. Random Forest Probabilities
-# --------------------------------
+# Find the probability column corresponding to "Y"
+approved_index = list(
+    random_forest_pipeline.named_steps["model"].classes_
+).index("Y")
 
 y_probability = random_forest_pipeline.predict_proba(
     X_test
-)[:, 1]
+)[:, approved_index]
 
 
 # --------------------------------
-# 22. ROC-AUC
+# 14. Evaluate Random Forest
 # --------------------------------
 
-roc_auc = roc_auc_score(
+rf_metrics = evaluate_model(
+    "Random Forest",
     y_test,
+    y_pred_rf,
     y_probability
 )
 
-print("\nRandom Forest ROC-AUC:")
-print(roc_auc)
+
+# --------------------------------
+# 15. Compare All Models
+# --------------------------------
+
+results = pd.DataFrame([
+    lr_metrics,
+    tree_metrics,
+    rf_metrics
+])
+
+print("\n\n" + "=" * 75)
+print("MODEL COMPARISON")
+print("=" * 75)
+
+print(
+    results.to_string(
+        index=False,
+        formatters={
+            "Accuracy": "{:.4f}".format,
+            "Precision": "{:.4f}".format,
+            "Recall": "{:.4f}".format,
+            "F1-Score": "{:.4f}".format
+        }
+    )
+)
+
+# Save results for future use
+results.to_csv("model_evaluation_results.csv", index=False)
+
+print("\nEvaluation results saved to model_evaluation_results.csv")
