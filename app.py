@@ -5,8 +5,12 @@ import shap
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "loan_approval_model.pkl")
+RESULTS_PATH = os.path.join(BASE_DIR, "model_evaluation_results.csv")
+CONFUSION_MATRIX_PATH = os.path.join(BASE_DIR, "confusion_matrix.csv")
 
 
 # ============================================================
@@ -16,7 +20,7 @@ from sklearn.metrics import confusion_matrix
 st.set_page_config(
     page_title="LoanWise",
     page_icon="🏦",
-    layout="centered"
+    layout="wide"
 )
 
 
@@ -24,7 +28,11 @@ st.set_page_config(
 # LOAD MODEL
 # ============================================================
 
-model = joblib.load("loan_approval_model.pkl")
+if not os.path.exists(MODEL_PATH):
+    st.error(f"Model file not found: {MODEL_PATH}")
+    st.stop()
+
+model = joblib.load(MODEL_PATH)
 
 preprocessor = model.named_steps["preprocessing"]
 random_forest = model.named_steps["model"]
@@ -498,12 +506,25 @@ st.write(
     "as the positive class."
 )
 
-results_file = "model_evaluation_results.csv"
+results_file = RESULTS_PATH
 
 if os.path.exists(results_file):
     results = pd.read_csv(results_file)
+    results.columns = [str(col).strip() for col in results.columns]
 
-    rf = results[results["Model"] == "Random Forest"]
+    required_columns = ["Model", "Accuracy", "Precision", "Recall", "F1-Score"]
+    missing_columns = [col for col in required_columns if col not in results.columns]
+
+    if missing_columns:
+        st.error(
+            "Evaluation CSV is missing expected columns: "
+            + ", ".join(missing_columns)
+            + ". Found: "
+            + ", ".join(results.columns.astype(str))
+        )
+        st.stop()
+
+    rf = results[results["Model"].astype(str).str.strip().str.lower() == "random forest"]
 
     if not rf.empty:
         rf = rf.iloc[0]
@@ -546,6 +567,64 @@ else:
     st.error(
         "Evaluation results not found. "
         "Run python src/train_model.py from your project root."
+    )
+
+
+# ============================================================
+# CONFUSION MATRIX
+# ============================================================
+
+st.divider()
+st.header("🧮 Confusion Matrix")
+
+st.write(
+    "This matrix shows Random Forest classifications on the held-out test set. "
+    "Rows represent actual outcomes and columns represent predicted outcomes. "
+    "N = rejected; Y = approved."
+)
+
+if os.path.exists(CONFUSION_MATRIX_PATH):
+    try:
+        cm_df = pd.read_csv(CONFUSION_MATRIX_PATH, index_col=0)
+        cm_df = cm_df.apply(pd.to_numeric, errors="coerce")
+
+        if cm_df.shape == (2, 2) and not cm_df.isna().any().any():
+            fig, ax = plt.subplots(figsize=(7, 5))
+            image = ax.imshow(cm_df.values, cmap="Blues")
+            ax.set_xticks(range(2), labels=cm_df.columns, rotation=10)
+            ax.set_yticks(range(2), labels=cm_df.index)
+            ax.set_xlabel("Predicted outcome")
+            ax.set_ylabel("Actual outcome")
+            ax.set_title("Random Forest — Held-out Test Set")
+
+            threshold = cm_df.values.max() / 2 if cm_df.values.max() else 0
+            for i in range(2):
+                for j in range(2):
+                    ax.text(
+                        j, i, f"{int(cm_df.iloc[i, j])}",
+                        ha="center", va="center",
+                        color="white" if cm_df.iloc[i, j] > threshold else "black",
+                        fontsize=14, fontweight="bold"
+                    )
+
+            fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
+            fig.tight_layout()
+            st.pyplot(fig, use_container_width=False)
+            plt.close(fig)
+
+            with st.expander("View confusion matrix values"):
+                st.dataframe(cm_df, use_container_width=True)
+        else:
+            st.warning(
+                "confusion_matrix.csv is not a numeric 2 × 2 matrix. "
+                "Run `python src/train_model.py` to regenerate it."
+            )
+    except Exception as error:
+        st.error(f"Could not load confusion_matrix.csv: {error}")
+else:
+    st.warning(
+        "Confusion matrix file is missing. Run `python src/train_model.py` "
+        "from the project root; the updated training script saves this file."
     )
 
 
